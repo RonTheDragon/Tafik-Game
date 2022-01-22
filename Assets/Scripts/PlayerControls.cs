@@ -19,6 +19,7 @@ public class PlayerControls : MonoBehaviour
     public float JumpTime = 1f;
     public float jumpHeight = 2.4f;
     float jumpTimeLeft;
+    float fallingTime;
 
     GameObject HeldObject;
     public LayerMask InteractableOnly;
@@ -92,19 +93,24 @@ public class PlayerControls : MonoBehaviour
         if (jumpTimeLeft > 0)
         {
             jumpTimeLeft -= Time.deltaTime;
-            Direction = jumpHeight;
+            Direction = jumpHeight* jumpTimeLeft;
         }
         else
         {
-            Direction = -gravityMultiplier;
+            fallingTime += Time.deltaTime;
+            Direction = -gravityMultiplier*fallingTime;
+            
         }
 
         if (CC.isGrounded && Input.GetKey(KeyCode.Space))
         {
             jumpTimeLeft = JumpTime;
+            fallingTime = 0;
         }
    
         CC.Move(PlayerBody.up * Direction * Time.deltaTime);
+
+        
     }
     void Holding()
     {
@@ -145,13 +151,19 @@ public class PlayerControls : MonoBehaviour
     }
     void Kick()
     {
-        if (Input.GetKey(KeyCode.F))
+        if (Input.GetKey(KeyCode.F) && charge < MaxCharge)
+        {
+            charge += Time.deltaTime;
+        }
+        if (Input.GetKeyUp(KeyCode.F))
         {
             RaycastHit hit;
             if (Physics.Raycast(cam.transform.position, cam.transform.forward, out hit, 5, InteractableOnly))
             {
                 Rigidbody HRB = hit.transform.GetComponent<Rigidbody>();
+                if (charge < 0.5f) { charge = 0.5f; }
                 HRB.velocity = cam.transform.forward * charge * strongLeg;
+                charge = 0;
             }
         }
     }
