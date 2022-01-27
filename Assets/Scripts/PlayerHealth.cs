@@ -27,4 +27,9 @@ public class PlayerHealth : Health
             CC.Move((transform.position - TheImpactLocation).normalized * TheKnockback * Time.deltaTime);
         }
     }
+    protected override void Death()
+    {
+        base.Death();
+        StartCoroutine(GameManager.RestartLevel());
+    }
 }

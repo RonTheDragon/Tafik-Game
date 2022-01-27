@@ -2,9 +2,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.UI;
 
 public class Enemy : MonoBehaviour
 {
+    float OriginalSpeed;
+    float OriginalDetectionRange;
     NavMeshAgent NMA;
     GameObject Player;
     float dist;
@@ -14,25 +17,39 @@ public class Enemy : MonoBehaviour
     public float RoamCooldown = 10;
     float roamCooldown;
     public float RoamRadius = 10;
-    public GameObject Weapon;
+    public float Bravery = 50;
 
-    public float AttackCooldown;
-    float Acooldown;
+    EnemyAttackSystem eas;
+    EnemyHealth hp;
+
+    public Image HpBar;
+    public Image StaminaBar;
+
+    Transform TheEnemy;
+    Transform canvas;
 
     // Start is called before the first frame update
     void Awake()
     {
-        NMA = GetComponent<NavMeshAgent>();     
+        TheEnemy = transform.GetChild(0);
+        canvas = transform.GetChild(1);
+        NMA = TheEnemy.GetComponent<NavMeshAgent>();
+        eas = TheEnemy.GetComponent<EnemyAttackSystem>();
+        hp = TheEnemy.GetComponent<EnemyHealth>();
     }
 
     void Start()
     {
         Player = GameManager.Player.transform.Find("ThePlayer").gameObject;
+        OriginalSpeed = NMA.speed;
+        OriginalDetectionRange = DetectionRange;
     }
 
     // Update is called once per frame
     void Update()
     {
+        HpBar.fillAmount = 0;
+        StaminaBar.fillAmount = 0;
         EnemyAI();
     }
 
@@ -52,39 +69,65 @@ public class Enemy : MonoBehaviour
 
         if (chasingPlayer)
         {
-            ChasePlayer();
+            ShowBars();
+            DetectionRange = OriginalDetectionRange * 1.5f;
+            NMA.speed = OriginalSpeed * 1.5f;
+            if (CheckBravery())
+            {
+                ChasePlayer();
+            }
+            else
+            {
+                RunningAway();
+            }
+            
+            
         }
         else
         {
+            DetectionRange = OriginalDetectionRange;
+            NMA.speed = OriginalSpeed;
             Wonder();
         }
 
+        if (eas.Stamina < eas.Tired) { NMA.speed = OriginalSpeed * 0.5f; }
+    }
+    
+    bool CheckBravery()
+    {
+        float maxBrave = hp.MaxHp + eas.MaxStamina;
+        float currentBravery = hp.Hp + eas.Stamina;
+        float BravePercent = currentBravery / maxBrave * 100;
+        if (BravePercent >= 100-Bravery)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
-    IEnumerator BasicAttackAnimation()
+    void RunningAway()
     {
-        Collider c = Weapon.GetComponent<Collider>();
-        MeshRenderer m = Weapon.GetComponent<MeshRenderer>();
-        m.enabled = true;
-        c.enabled = true;
-        yield return new WaitForSeconds(0.3f);
-        m.enabled = false;
-        c.enabled = false;
+        NMA.SetDestination(TheEnemy.position+((TheEnemy.position - Player.transform.position).normalized*5));
     }
 
     void ChasePlayer()
     {
-        NMA.SetDestination(Player.transform.position);
-        if (Acooldown > 0) { Acooldown -= Time.deltaTime; }
-        if (dist < NMA.stoppingDistance)
+        NMA.SetDestination(Player.transform.position);       
+        if (dist <= NMA.stoppingDistance)
         {
             RotateTowards(Player.transform);
-            if (Acooldown <= 0)
-            {
-                Acooldown = AttackCooldown;
-                StartCoroutine(BasicAttackAnimation());
-            }
+            eas.Attack();
         }
+    }
+
+    void ShowBars()
+    {
+        canvas.position = TheEnemy.position + new Vector3(0,1.2f,1f);
+        HpBar.fillAmount = hp.Hp / hp.MaxHp;
+        StaminaBar.fillAmount = eas.Stamina / eas.MaxStamina;
     }
 
     void Wonder()
@@ -95,7 +138,7 @@ public class Enemy : MonoBehaviour
             roamCooldown = Random.Range(0, RoamCooldown);
             float x = Random.Range(-RoamRadius, RoamRadius);
             float z = Random.Range(-RoamRadius + 0.1f, RoamRadius);
-            Vector3 MoveTo = new Vector3(transform.position.x + x, transform.position.y, transform.position.z + z);
+            Vector3 MoveTo = new Vector3(TheEnemy.position.x + x, TheEnemy.position.y, TheEnemy.position.z + z);
             NMA.SetDestination(MoveTo);
         }
     }
@@ -103,7 +146,7 @@ public class Enemy : MonoBehaviour
     bool eyesightcheck()
     {
         RaycastHit hit;
-        if (Physics.Raycast(transform.position, (Player.transform.position - transform.position).normalized, out hit, DetectionRange))
+        if (Physics.Raycast(TheEnemy.position, (Player.transform.position - TheEnemy.position).normalized, out hit, DetectionRange))
         {
             if (hit.transform.gameObject == Player)
             {
@@ -115,7 +158,7 @@ public class Enemy : MonoBehaviour
 
     bool canSeePlayer()
     {
-        dist = Vector3.Distance(transform.position, Player.transform.position);
+        dist = Vector3.Distance(TheEnemy.position, Player.transform.position);
         if (dist <= DetectionRange && alert < 3)
         {
             if (eyesightcheck())
@@ -132,9 +175,9 @@ public class Enemy : MonoBehaviour
 
     private void RotateTowards(Transform target)
     {
-        Vector3 targetlocation = new Vector3(target.transform.position.x, transform.position.y, target.transform.position.z);
-        Vector3 direction = (targetlocation - transform.position).normalized;
+        Vector3 targetlocation = new Vector3(target.transform.position.x, TheEnemy.position.y, target.transform.position.z);
+        Vector3 direction = (targetlocation - TheEnemy.position).normalized;
         Quaternion lookRotation = Quaternion.LookRotation(direction);
-        transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, Time.deltaTime * NMA.angularSpeed);
+        TheEnemy.rotation = Quaternion.Slerp(TheEnemy.rotation, lookRotation, Time.deltaTime * NMA.angularSpeed);
     }
 }

@@ -2,25 +2,34 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class BAplayerController : MonoBehaviour
 {
+    float OriginalSpeed;
     public float MovementSpeed;
     public float RotationSpeed;
     public float Gravity = 10;
 
-    public float AttackCooldown;
-    float Acooldown;
-
-    public GameObject Weapon;
-
     CharacterController CC;
     PlayerInputActions playerInputActions;
+    PlayerAttackSystem pas;
+    PlayerHealth hp;
+    Transform ThePlayer;
+
+    public Image HpBar;
+    public Image StaminaBar;
 
     void Awake()
     {
+        OriginalSpeed = MovementSpeed;
         GameManager.Player = gameObject;
-        CC = transform.Find("ThePlayer").GetComponent<CharacterController>();
+
+        ThePlayer = transform.Find("ThePlayer");
+        CC = ThePlayer.GetComponent<CharacterController>();
+        pas = ThePlayer.GetComponent<PlayerAttackSystem>();
+        hp = ThePlayer.GetComponent<PlayerHealth>();
         playerInputActions = new PlayerInputActions();
         playerInputActions.Player.Enable();
     }
@@ -28,69 +37,74 @@ public class BAplayerController : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        playerInputActions.Player.Fire.performed += Attack;
+        playerInputActions.Player.Fire.performed += pas.Attack;
     }
 
     // Update is called once per frame
     void Update()
     {
         Move();
-        Combat();
+        ShowBars();
     }
 
     void Move()
     {
+        Sprinting();
         Vector2 v2 = playerInputActions.Player.Move.ReadValue<Vector2>();
         Vector3 V3 = new Vector3(v2.x, 0, v2.y);
         CC.Move(V3.normalized* MovementSpeed * Time.deltaTime);
         CC.Move(Vector3.down * Gravity * Time.deltaTime);
 
-        if (V3 != Vector3.zero && Acooldown<=0)
+        if (V3 != Vector3.zero && pas.Acooldown<=0)
         {
             Vector3 _direction = (CC.transform.position + V3 - CC.transform.position).normalized;
             Quaternion _lookRotation = Quaternion.LookRotation(_direction);
-            CC.transform.Find("PlayerModel").rotation = Quaternion.Slerp(CC.transform.Find("PlayerModel").rotation, _lookRotation, Time.deltaTime * RotationSpeed);
+            ThePlayer.Find("PlayerModel").rotation = Quaternion.Slerp(ThePlayer.Find("PlayerModel").rotation, _lookRotation, Time.deltaTime * RotationSpeed);
         }
     }
 
-    void Combat()
+    public void Sprinting()
     {
-        if (Acooldown > 0) { Acooldown -=Time.deltaTime; }
-    }
-
-    IEnumerator BasicAttackAnimation()
-    {
-        Collider c = Weapon.GetComponent<Collider>();
-        MeshRenderer m = Weapon.GetComponent<MeshRenderer>();
-        m.enabled = true;
-        c.enabled = true;
-        yield return new WaitForSeconds(0.3f);
-        m.enabled = false;
-        c.enabled = false;
-    }
-
-
-    void Attack(InputAction.CallbackContext context)
-    {
-        if (Acooldown <= 0)
+        InputActionPhase phase = playerInputActions.Player.Sprint.phase;
+        if (pas.Stamina > pas.Tired)
         {
-            RaycastHit hit;
-            Ray r = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
-            if (Physics.Raycast(r, out hit))
+            if (phase == InputActionPhase.Started)
             {
-                Vector3 v3 = hit.point;
-                v3.y = CC.transform.position.y;
-                CC.transform.Find("PlayerModel").LookAt(v3);
-            }        
-            Acooldown = AttackCooldown;
-            StartCoroutine(BasicAttackAnimation());
+                MovementSpeed = OriginalSpeed * 1.5f;
+                pas.Stamina -= (pas.StaminaRegan + pas.StaminaCost) * Time.deltaTime;
+            }
+            else
+            {
+                MovementSpeed = OriginalSpeed;
+
+            }
         }
+        else
+        {
+            MovementSpeed = OriginalSpeed*0.5f;
+            if (phase == InputActionPhase.Started)
+            { pas.Stamina -= (pas.StaminaRegan + pas.StaminaCost) * Time.deltaTime; }
+        }
+        
     }
+
+    void ShowBars()
+    {
+        HpBar.fillAmount = hp.Hp / hp.MaxHp;
+        StaminaBar.fillAmount = pas.Stamina / pas.MaxStamina;
+    }
+    
 
 }
 public static class GameManager
 {
     public static GameObject Player;
+
+    public static IEnumerator RestartLevel()
+    {
+        yield return new WaitForSeconds(3);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
 }
     
 

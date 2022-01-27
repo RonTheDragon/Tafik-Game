@@ -5,7 +5,8 @@ using UnityEngine;
 public abstract class Health : MonoBehaviour
 {
     public float MaxHp = 100;
-    protected float Hp;
+    [HideInInspector]
+    public float Hp;
     public float HpRegan;
     protected float TheKnockback;
     protected Vector3 TheImpactLocation;
@@ -46,7 +47,7 @@ public abstract class Health : MonoBehaviour
         TheImpactLocation = ImpactLocation;
     }
 
-    protected void Death()
+    protected virtual void Death()
     {
         gameObject.SetActive(false);
     }

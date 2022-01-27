@@ -9,7 +9,7 @@ public class EnemyHealth : Health
     new void Start()
     {
         base.Start();
-        enemy = GetComponent<Enemy>();
+        enemy = transform.parent.GetComponent<Enemy>();
     }
 
     // Update is called once per frame
@@ -31,5 +31,10 @@ public class EnemyHealth : Health
             TheKnockback -= TheKnockback * Time.deltaTime;
             transform.position = Vector3.MoveTowards(transform.position, TheImpactLocation, -TheKnockback * Time.deltaTime);
         }
+    }
+
+    protected override void Death()
+    {
+        enemy.gameObject.SetActive(false);
     }
 }
