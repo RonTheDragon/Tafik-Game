@@ -28,6 +28,8 @@ public class Enemy : MonoBehaviour
     Transform TheEnemy;
     Transform canvas;
 
+    Rigidbody rb;
+
     // Start is called before the first frame update
     void Awake()
     {
@@ -36,6 +38,7 @@ public class Enemy : MonoBehaviour
         NMA = TheEnemy.GetComponent<NavMeshAgent>();
         eas = TheEnemy.GetComponent<EnemyAttackSystem>();
         hp = TheEnemy.GetComponent<EnemyHealth>();
+        rb = TheEnemy.GetComponent<Rigidbody>();
     }
 
     void Start()
@@ -51,6 +54,7 @@ public class Enemy : MonoBehaviour
         HpBar.fillAmount = 0;
         StaminaBar.fillAmount = 0;
         EnemyAI();
+        rb.velocity = Vector3.zero;
     }
 
     protected void EnemyAI()

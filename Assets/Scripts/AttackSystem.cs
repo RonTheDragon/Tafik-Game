@@ -27,7 +27,8 @@ public abstract class AttackSystem : MonoBehaviour
     {
         if (Acooldown > 0) { Acooldown -= Time.deltaTime; }
 
-        if (Stamina < MaxStamina)
+        if (Stamina<0) { Stamina = 0; }
+        else if (Stamina < MaxStamina)
         {
             if (StaminaRegan > 0)
                 Stamina += Time.deltaTime * StaminaRegan;
